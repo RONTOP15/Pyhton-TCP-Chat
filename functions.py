@@ -41,3 +41,13 @@ def validNickname():
         except:
             return sys.exit(0)
         
+        
+def writeToFile(msgs):
+    save = input('Save chat history ? [Y/N]> ').lower()
+    if save == "y":
+        with open(f'./logs/{timeNow("f")}-chat.log', 'w') as file:
+            for message in msgs:
+                file.write(f'{message} \n')
+        return sys.stdout.write("DONE")
+    else:
+        return sys.stdout.write('\nChat history not saved.')

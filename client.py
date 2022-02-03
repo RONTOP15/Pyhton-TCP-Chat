@@ -3,9 +3,9 @@ import threading
 import time
 import sys
 from tkinter import E
-from functions import loader, validNickname
+from functions import loader, validNickname, writeToFile
 from socket import *
-
+import os
 
 nickname = validNickname()
 
@@ -37,8 +37,7 @@ while not conn:
         else:
             print("      ABORT      ")
             time.sleep(2)
-            sys.exit(0)
-            break
+            os._exit(0)
 
 stop_thread = False
 
@@ -68,20 +67,24 @@ def receive():
         except Exception as e:
             print(f"\rAn Error occurred\n {e}")
             client.close()
-            break
+            
 
 
 def write():
     while 1:
         try:
-            time.sleep(1)
-            if client.fileno() != -1:
-                message = f'{nickname}: {input("")}'
-                client.send(message.encode())
+            message = input("")
+            if message.startswith('/'):
+                print('Left The chat..')
+                time.sleep(2)
+                client.close()
+            else:
+                client.sendall(f"{nickname}: {message}".encode())
             time.sleep(0.2)
-        except:
+        except Exception as e:
             print("Server Closed!")
-            break
+            print(e)
+            os._exit(1)
 
 
 if __name__ == "__main__":

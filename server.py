@@ -1,14 +1,16 @@
 import email
+from email import message
 import sys
 from socket import *
 import threading
 from turtle import st
 import time
-from functions import timeNow
+from functions import timeNow, writeToFile
 import os
 
 class Server(object):
     def __init__(self, host, port):
+        newChat = True
         self.startTime = time.perf_counter()
         self.host, self.port = host, port
         self.clients, self.nicknames = [], []
@@ -27,6 +29,11 @@ class Server(object):
             cli.sendall(f"{message}".encode())
         self.msgs.append(f"[{timeNow()}] - {message}")
 
+    def commentsBraodcast(self, message):
+        for cli in self.clients:
+            cli.sendall(f"{message}".encode())
+            
+    
     def handle(self, client):
         while True:
             try:
@@ -39,19 +46,25 @@ class Server(object):
                 client.close()
 
                 nickname = self.nicknames[clientIndex]
-                self.broadcast(f"{nickname} has left the chat.")
+                self.broadcast(f"<- {nickname} has left the chat :( ->")
                 self.nicknames.remove(nickname)
                 if len(self.clients) == 0:
                     print('No More Clients')
-                    self.writeToFile()
+
+                    # Saves chat histroy 
+                    writeToFile(self.msgs)
+                    
                     if input('Continue Listening? ') == 'y':
-                        sys.stdout.write("Server is listening....")
+                        sys.stdout.write("/nServer is listening....")
                     else:
                         print(f"Ended at {timeNow()}")
                         endTime = time.perf_counter()
                         total = int(endTime - self.startTime)
                         print(f"Total run time - {total} Seconds.")
                         os._exit(0)
+                break
+            except KeyboardInterrupt:
+                self.serverSocket.close()
                 break
 
     def receive(self):
@@ -78,7 +91,7 @@ class Server(object):
 
                 
                 print(f"The nickname is {nickname}")
-                self.broadcast(f"{nickname} joined the chat!")
+                self.broadcast(f"--> {nickname} joined the chat! <--")
                 client.send(f"Welcome to the sever {nickname}".encode())
 
                 handleThreading = threading.Thread(target=self.handle, args=(client,))
@@ -88,18 +101,13 @@ class Server(object):
             except Exception as e:
                 sys.stderr.write(str(e))
                 continue
+            except KeyboardInterrupt:
+                self.serverSocket.close()
+                break
 
 
 
-    def writeToFile(self):
-        save = input('Save chat history ? [Y/N]> ').lower()
-        if save == "y":
-            with open(f'./logs/{timeNow("f")}-chat.log', 'a+') as file:
-                for message in self.msgs:
-                    file.write(f'{message} \n')
-            sys.stdout.write("\rDONE")
-        else:
-            print('Chat history not saved.')
+
 
 
 if __name__ == "__main__":
