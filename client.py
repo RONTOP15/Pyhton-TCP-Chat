@@ -1,18 +1,13 @@
-from re import T
+import sys
 import threading
 import time
-import sys
-from tkinter import E
 from functions import loader, validNickname, writeToFile
 from socket import *
 import os
 
 nickname = validNickname()
-
-if nickname == 'admin':
-    password = input("Enter password\n")
-
-
+if nickname == "Admin":
+    password = input("Enter Password : ")
 
 # port = int(input("Choose Port > \n"))
 # hostIp = input("Choose Ip Address >\n")
@@ -28,7 +23,7 @@ while not conn:
         loader(3, "Loading")
         client.connect((HOST, T_PORT))
         conn = True
-    except Exception as er:
+    except:
         if attempts <= 1:
             attempts += 1
             print('Server not Found')
@@ -51,40 +46,46 @@ def receive():
             message = client.recv(2048).decode()
             if message == "NICK":
                 client.send(nickname.encode())
-                next_msg = client.recv(1024)
+                next_msg = client.recv(1024).decode()
                 if next_msg == "PASSWD":
                     client.send(password.encode())
                     if client.recv(1024).decode() == "REFUSE":
                         print(f"Wrong password, Connection Refused.")
                         stop_thread = True
-            elif len(message) > 0:
-                if "joined the chat!" in message:
-                    print(message)
-                elif f"Welcome to the sever {nickname}" in message:
-                    print(message)
-                else:
-                    print(message)
+                        client.close()
+            else:
+                print(message)
+
+        except ConnectionAbortedError:
+            print("Disconnected Successfully!")
+            break
         except Exception as e:
             print(f"\rAn Error occurred\n {e}")
             client.close()
-            
+            break
 
 
 def write():
-    while 1:
+    while True:
+        if stop_thread:
+            break
         try:
             message = input("")
             if message.startswith('/'):
-                print('Left The chat..')
-                time.sleep(2)
-                client.close()
+                if message.startswith('/exit'):
+                    print('Left The chat..')
+                    time.sleep(2)
+                    client.close()
+                    break
+                else:
+                    client.send(message.encode())
             else:
                 client.sendall(f"{nickname}: {message}".encode())
             time.sleep(0.2)
         except Exception as e:
             print("Server Closed!")
             print(e)
-            os._exit(1)
+            break
 
 
 if __name__ == "__main__":

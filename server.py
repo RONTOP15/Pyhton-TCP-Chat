@@ -1,16 +1,12 @@
-import email
-from email import message
 import sys
 from socket import *
 import threading
-from turtle import st
 import time
 from functions import timeNow, writeToFile
-import os
+
 
 class Server(object):
     def __init__(self, host, port):
-        newChat = True
         self.startTime = time.perf_counter()
         self.host, self.port = host, port
         self.clients, self.nicknames = [], []
@@ -23,22 +19,31 @@ class Server(object):
         print(f"Started at {timeNow()}")
         sys.stdout.write(f"Server listening in port {self.port}\n")
 
-
     def broadcast(self, message):
         for cli in self.clients:
             cli.sendall(f"{message}".encode())
         self.msgs.append(f"[{timeNow()}] - {message}")
 
-    def commentsBraodcast(self, message):
-        for cli in self.clients:
-            cli.sendall(f"{message}".encode())
-            
-    
     def handle(self, client):
         while True:
             try:
                 message = client.recv(2048).decode()
-                self.broadcast(message)
+                if message == '/chat':
+                    if len(self.nicknames) > 2:
+                        client.send(f'{", ".join(self.nicknames[:-1])} and {self.nicknames[-1]} is in the chat'.encode())
+                    elif len(self.nicknames) == 1:
+                        client.send(f'Its only you {self.nicknames[0]}'.encode())
+                    else:
+                        client.send(f'{self.nicknames[0]} and {self.nicknames[1]} is in the chat.'.encode())
+                elif message == '/help':
+                    helpMsg = """
+                    Hello There !
+                    to see all members in the chat enter '/chat'.
+                    for help enter '/help'.
+                    """
+                    client.send(helpMsg.encode())
+                else:
+                    self.broadcast(message)
             except Exception as e:
                 print(e)
                 clientIndex = self.clients.index(client)
@@ -51,17 +56,17 @@ class Server(object):
                 if len(self.clients) == 0:
                     print('No More Clients')
 
-                    # Saves chat histroy 
+                    # Saves chat history
                     writeToFile(self.msgs)
-                    
+
                     if input('Continue Listening? ') == 'y':
-                        sys.stdout.write("/nServer is listening....")
+                        sys.stdout.write("\nServer is listening....")
                     else:
                         print(f"Ended at {timeNow()}")
-                        endTime = time.perf_counter()
-                        total = int(endTime - self.startTime)
-                        print(f"Total run time - {total} Seconds.")
-                        os._exit(0)
+                        totalRunTime = int(time.perf_counter() - self.startTime)
+                        print(f"Total run time - {totalRunTime} Seconds.")
+                        self.serverSocket.close()
+                        sys.exit(0)
                 break
             except KeyboardInterrupt:
                 self.serverSocket.close()
@@ -76,21 +81,22 @@ class Server(object):
                 client.send("NICK".encode())
                 nickname = client.recv(2048).decode()
 
-
-                if nickname == "admin":
+                if nickname == "Admin":
                     client.send("PASSWD".encode())
                     passwd = client.recv(1024).decode()
+
                     if passwd != "adminpass":
                         client.send("REFUSE".encode())
                         client.close()
                         continue
 
-                
                 self.nicknames.append(nickname)
                 self.clients.append(client)
 
-                
-                print(f"The nickname is {nickname}")
+                if nickname == "Admin":
+                    print("Admin Connected to the server !")
+                else:
+                    print(f"The nickname is {nickname}")
                 self.broadcast(f"--> {nickname} joined the chat! <--")
                 client.send(f"Welcome to the sever {nickname}".encode())
 
@@ -99,18 +105,16 @@ class Server(object):
 
                 print(f"active connections {threading.active_count() - 1}")
             except Exception as e:
-                sys.stderr.write(str(e))
-                continue
+                print(e)
+                break
             except KeyboardInterrupt:
                 self.serverSocket.close()
                 break
-
-
-
-
 
 
 if __name__ == "__main__":
     server = Server("0.0.0.0", 3333)
     server.bind()
     server.receive()
+
+time.sleep(10)
