@@ -1,13 +1,15 @@
 import sys
+
+from functions import loader, validNickname
+from getpass import getpass
+from socket import *
 import threading
 import time
-from functions import loader, validNickname, writeToFile
-from socket import *
 import os
 
 nickname = validNickname()
 if nickname == "Admin":
-    password = input("Enter Password : ")
+    password = getpass("Enter Password : ")
 
 # port = int(input("Choose Port > \n"))
 # hostIp = input("Choose Ip Address >\n")
@@ -23,16 +25,17 @@ while not conn:
         loader(3, "Loading")
         client.connect((HOST, T_PORT))
         conn = True
-    except:
+    except Exception as e:
         if attempts <= 1:
             attempts += 1
-            print('Server not Found')
-            time.sleep(1)
+            print(f'Server not Found ')
+            time.sleep(0.4)
             continue
         else:
             print("      ABORT      ")
+            print(e)
             time.sleep(2)
-            os._exit(0)
+            sys.exit(1)
 
 stop_thread = False
 
@@ -51,8 +54,15 @@ def receive():
                     client.send(password.encode())
                     if client.recv(1024).decode() == "REFUSE":
                         print(f"Wrong password, Connection Refused.")
-                        stop_thread = True
                         client.close()
+                        print("Closing...")
+                        time.sleep(2)
+                        stop_thread = True
+                    else:
+                        print("Connected as Admin!")
+
+                else:
+                    print(next_msg)
             else:
                 print(message)
 
@@ -71,20 +81,23 @@ def write():
             break
         try:
             message = input("")
+            if nickname == 'Admin':
+                if message.startswith('!kick'):
+                    client.send(f"KICK {message}".encode())
             if message.startswith('/'):
-                if message.startswith('/exit'):
+                if message == '/exit':
                     print('Left The chat..')
                     time.sleep(2)
                     client.close()
                     break
+
                 else:
                     client.send(message.encode())
             else:
                 client.sendall(f"{nickname}: {message}".encode())
-            time.sleep(0.2)
-        except Exception as e:
+            time.sleep(1)
+        except:
             print("Server Closed!")
-            print(e)
             break
 
 

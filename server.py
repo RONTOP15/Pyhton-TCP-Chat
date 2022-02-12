@@ -1,8 +1,7 @@
-import sys
 from socket import *
 import threading
 import time
-from functions import timeNow, writeToFile
+from functions import timeNow, writeToFile, handleCommands
 
 
 class Server(object):
@@ -17,7 +16,7 @@ class Server(object):
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.listen(5)
         print(f"Started at {timeNow()}")
-        sys.stdout.write(f"Server listening in port {self.port}\n")
+        print(f"Server listening in port {self.port}\n")
 
     def broadcast(self, message):
         for cli in self.clients:
@@ -27,25 +26,19 @@ class Server(object):
     def handle(self, client):
         while True:
             try:
-                message = client.recv(2048).decode()
-                if message == '/chat':
-                    if len(self.nicknames) > 2:
-                        client.send(f'{", ".join(self.nicknames[:-1])} and {self.nicknames[-1]} is in the chat'.encode())
-                    elif len(self.nicknames) == 1:
-                        client.send(f'Its only you {self.nicknames[0]}'.encode())
-                    else:
-                        client.send(f'{self.nicknames[0]} and {self.nicknames[1]} is in the chat.'.encode())
-                elif message == '/help':
-                    helpMsg = """
-                    Hello There !
-                    to see all members in the chat enter '/chat'.
-                    for help enter '/help'.
-                    """
-                    client.send(helpMsg.encode())
+                msg = message = client.recv(2048).decode()
+                if msg.startswith('/'):
+                    handleCommands(msg, self.msgs, client, self.nicknames)
+                elif msg.startswith("KICK"):
+                    try:
+                        nickToKick = msg[11:].capitalize()
+                        self.kickUser(nickToKick)
+                    except:
+                        continue
                 else:
                     self.broadcast(message)
             except Exception as e:
-                print(e)
+                print(f"{self.nicknames[self.clients.index(client)]} Disconnected!")
                 clientIndex = self.clients.index(client)
                 self.clients.remove(client)
                 client.close()
@@ -53,57 +46,64 @@ class Server(object):
                 nickname = self.nicknames[clientIndex]
                 self.broadcast(f"<- {nickname} has left the chat :( ->")
                 self.nicknames.remove(nickname)
+
                 if len(self.clients) == 0:
                     print('No More Clients')
-
                     # Saves chat history
                     writeToFile(self.msgs)
-
+                    self.msgs = []
                     if input('Continue Listening? ') == 'y':
-                        sys.stdout.write("\nServer is listening....")
+                        print("\nServer is listening....\n")
                     else:
                         print(f"Ended at {timeNow()}")
                         totalRunTime = int(time.perf_counter() - self.startTime)
                         print(f"Total run time - {totalRunTime} Seconds.")
                         self.serverSocket.close()
-                        sys.exit(0)
+                        break
+
                 break
             except KeyboardInterrupt:
                 self.serverSocket.close()
                 break
 
+    def kickUser(self, name):
+        if name in self.nicknames:
+            nicknameIndex = self.nicknames.index(name)
+            clientToKick = self.clients[nicknameIndex]
+            clientToKick.send("You have been kick by an admin!".encode())
+            clientToKick.close()
+            self.broadcast(f'{name} has been kicked by an admin!')
+        else:
+            print('nickname is not in the list')
+
     def receive(self):
         while True:
             try:
                 client, address = self.serverSocket.accept()
-                print(f"Connected with {str(address)}")
 
                 client.send("NICK".encode())
                 nickname = client.recv(2048).decode()
-
                 if nickname == "Admin":
                     client.send("PASSWD".encode())
                     passwd = client.recv(1024).decode()
-
-                    if passwd != "adminpass":
+                    if passwd != "123":
                         client.send("REFUSE".encode())
+                        print(f"Failed to connect as Admin by {str(address)}")
                         client.close()
                         continue
 
+                print(f"Connected with {str(address)}")
+
+                self.broadcast(f"--> {nickname} joined the chat! <--")
                 self.nicknames.append(nickname)
                 self.clients.append(client)
 
-                if nickname == "Admin":
-                    print("Admin Connected to the server !")
-                else:
-                    print(f"The nickname is {nickname}")
-                self.broadcast(f"--> {nickname} joined the chat! <--")
+                print(f"{nickname} Connected to the server!")
                 client.send(f"Welcome to the sever {nickname}".encode())
 
                 handleThreading = threading.Thread(target=self.handle, args=(client,))
                 handleThreading.start()
 
-                print(f"active connections {threading.active_count() - 1}")
             except Exception as e:
                 print(e)
                 break
@@ -117,4 +117,4 @@ if __name__ == "__main__":
     server.bind()
     server.receive()
 
-time.sleep(10)
+time.sleep(3)

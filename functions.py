@@ -29,12 +29,12 @@ def loader(*args):
 
 def validNickname():
     while True:
-        nickname = input('Choose Nickname :  ')
+        nickname = input('Choose Nickname : ').capitalize()
         try:
             if re.match("^[a-zA-Z]+.*", nickname):
                 if ' ' in nickname:
                     print("Nickname can't contain spaces")
-                elif re.compile('[@_!#$%^\'&*()<>?/|}{~:]').search(nickname):
+                elif re.compile('[@_!#$%^\'&*(;)<>?/\]\[|}{~:]').search(nickname):
                     print("Special Characters are not allowed")
                 elif len(nickname) <= 3:
                     print('Nickname too short, minimum 3 chars')
@@ -43,13 +43,15 @@ def validNickname():
                     print('Nickname too long, max 12 chars')
                     continue
                 else:
-                    return nickname.capitalize()
+                    return nickname
             else:
                 print("Nickname must begin with letters")
                 continue
         except Exception as e:
             print(e)
             return sys.exit(0)
+        else:
+            continue
 
 
 def writeToFile(msgs):
@@ -60,11 +62,28 @@ def writeToFile(msgs):
         with open(filename, 'w') as file:
             for message in msgs:
                 file.write(f'{message} \n')
-        return sys.stdout.write("\nDONE")
+        return sys.stdout.write(f"Saved to file {timeNow('f')}\n")
     else:
-        return sys.stdout.write("\n Chat history not saved.")
+        return sys.stdout.write("\n Chat history not saved.\n")
 
 
+def handleCommands(msg, msgs, client, nicknames):
+    if msg == '/who':
+        if len(nicknames) > 2:
+            client.send(
+                f'{", ".join(nicknames[:-1])} and {nicknames[-1]} is in the chat'.encode())
+        elif len(nicknames) == 1:
+            client.send(f'Its only you {nicknames[0]}'.encode())
+        else:
+            client.send(f'{nicknames[0]} and {nicknames[1]} is in the chat.'.encode())
+    elif msg == "/his":
+        his = ''
+        for i in msgs:
+            his += f"{i}\n"
+        client.send(his.encode())
+    else:
+        client.send(f'No command named - "{msg}"'.encode())
 
 
-
+if __name__ == '__main__':
+    pass
