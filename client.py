@@ -108,4 +108,4 @@ if __name__ == "__main__":
     write_threading = threading.Thread(target=write)
     write_threading.start()
 else:
-    print("what the fuck did you try to do now? did you imported me?")
+    print("Cannot be imported")
